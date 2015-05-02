@@ -1,0 +1,137 @@
+<!-- index.html -->
+<html>
+  <head>
+    <title>My Earth Live!</title>
+    <script src="https://fb.me/react-0.13.2.js"></script>
+    <script src="https://fb.me/JSXTransformer-0.13.2.js"></script>
+    <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+    <script src="js/helper.js"></script>
+    <script src="js/game_core.js"></script>
+  </head>
+  <body>
+    <div id="main"></div>
+    <script type="text/jsx">
+      var GameField = React.createClass({
+        getInitialState: function() {
+          return {game: this.props.game};
+        },
+        onGameUpdate: function() {
+          this.setState({game: this.props.game});
+        },
+        render: function() {
+          return (
+            <div className="gameField">
+              <h1>My Earth Live!</h1>
+              <Info game={this.state.game} />
+              <OpenCardField onPlay={this.onGameUpdate} game={this.state.game} />
+            </div>
+          );
+        }
+      });
+
+      var Info = React.createClass({
+        render: function() {
+          var score_calc = this.props.game.parse_criteria();
+          var opp_score  = score_calc(this.props.game.oppo_play)
+          var your_score = score_calc(this.props.game.your_play)
+          var whose_turn_dict = { 0: 'Opponent Turn', 1: 'Your Turn' };
+          var win_lose_dict = { "-1": 'You Lose...', 1: 'You Won!!', 0: 'Tied Game..!' };
+          var game_status_text;
+          if (this.props.game.game_status == Game.ENDED) {
+            game_status_text = win_lose_dict[this.props.game.match()];
+          } else {
+            game_status_text = whose_turn_dict[this.props.game.current_turn];
+          }
+          return (
+            <dl id="info">
+              <dt>Status</dt>
+              <dd>{game_status_text}</dd>
+              <dt>Criteria</dt>
+              <dd>
+                {this.props.game.get_criteria().param_name}
+                ({this.props.game.get_criteria().comparator})
+              </dd>
+              <dt>Opponent Power</dt>
+              <dd>{opp_score}</dd>
+              <dt>Your Power</dt>
+              <dd>{your_score}</dd>
+              <dt>Opponent Library Size</dt>
+              <dd>{this.props.game.oppo_library.length}</dd>
+            </dl>
+          );
+        }
+      });
+
+      var OpenCardField = React.createClass({
+        makeCard: function() {
+          window.open('/make', '_target');
+        },
+        render: function() {
+          var self = this;
+          var card_producer = function(card, i, arr) {
+            return (
+              <Card onPlay={self.props.onPlay} game={self.props.game}
+                    name={card.name} pic_url={card.pic_url}
+                    parameters={card.parameters} index={i} />
+            );
+          }
+          var oppo_play  = this.props.game.oppo_play.map(card_producer);
+          var your_play  = this.props.game.your_play.map(card_producer);
+          var your_hands = this.props.game.your_hand.map(card_producer);
+          return (
+            <div id="openCardField">
+              <div id="playField">
+                <div id="oppPlay">
+                  <h2>Opponent Play</h2>
+                  {oppo_play}</div>
+                <div id="yourPlay">
+                  <h2>Your Play</h2>
+                  {your_play}</div>
+              </div>
+              <div id="yourHand">
+                <h2>Your Hand</h2>
+                {your_hands}
+                <div onClick={this.makeCard} className="makeCard">
+                  Make Card Yourself
+                </div>
+              </div>
+            </div>
+          );
+        }
+      });
+
+      var Card = React.createClass({
+        handleClick: function() {
+          if (this.props.game.current_turn === Game.YOUR_TURN) {
+            this.props.game.play_card(this.props.index);
+            this.props.game.match();
+            this.props.onPlay();
+          }
+        },
+        render: function(){
+          return (
+            <div onClick={this.handleClick} className="card">
+              <h3 className="cardName">
+                {this.props.name}
+              </h3>
+              <img width="100" className="cardPicUrl" src={this.props.pic_url} />
+              <span className="cardParameters">
+                {this.props.parameters}
+              </span>
+            </div>
+          );
+        }
+      });
+
+      var game = new Game();
+      game.load_external_files('data/environment1430419183.json', 'data/your_empty_deck.json');
+      game.load_cards_to_library();
+      game.draw_card();
+      game.play_card(0);
+      React.render(
+        <GameField game={game} />,
+        document.getElementById('main')
+      );
+    </script>
+  </body>
+</html>
