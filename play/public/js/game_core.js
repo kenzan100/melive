@@ -12,6 +12,7 @@
 
 var game_env_data_to_be_parsed = [];
 var game_env_data = {};
+var oppo_deck = [];
 var your_deck = [];
 
 var Game = function() {
@@ -33,8 +34,8 @@ Game.YOUR_TURN = 1;
 Game.IN_PLAY = 0;
 Game.ENDED = 1;
 
-Game.prototype.load_external_files = function(env_url, deck_url) {
-  [env_url, deck_url].forEach(function(url){
+Game.prototype.load_external_files = function(env_url, oppo_deck_url, your_deck_url) {
+  [env_url, oppo_deck_url, your_deck_url].forEach(function(url){
     $.ajax({
       async: false,
       url: url,
@@ -48,7 +49,8 @@ Game.prototype.load_external_files = function(env_url, deck_url) {
     });
   });
   game_env_data = game_env_data_to_be_parsed[0];
-  your_deck = game_env_data_to_be_parsed[1];
+  oppo_deck = game_env_data_to_be_parsed[1]
+  your_deck = game_env_data_to_be_parsed[2];
 }
 
 Game.prototype.parse_unit = function() {
@@ -85,7 +87,7 @@ Game.prototype.move_cards = function(from_arr, to_arr, to_size) {
 
 Game.prototype.load_cards_to_library = function() {
   // TODO read data
-  this.move_cards(shuffle(game_env_data.cards), this.oppo_library, Game.LIBRARY_SIZE);
+  this.move_cards(shuffle(oppo_deck), this.oppo_library, Game.LIBRARY_SIZE);
   this.move_cards(shuffle(your_deck), this.your_library, Game.LIBRARY_SIZE);
 }
 

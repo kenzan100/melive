@@ -54,12 +54,45 @@ class MyHTTPServer
 
       req_line = socket.gets
       STDERR.puts req_line
+      next unless req_line
 
+      req_uri = req_line.split(" ")[1]
+      req_path = URI.unescape(URI(req_uri).path)
       if req_line.split(" ").first == 'POST'
-        msg_body = read_msg_body(socket)
-        MELive.accept_card_suggestion(msg_body)
+        case req_path
+        when '/submit'
+          msg_body = read_msg_body(socket)
+          MELive.accept_card_suggestion(msg_body)
 
-        response = "Thank you for submitting! When judges decide the card is valid, it's be added to your deck!"
+          response = "Thank you for submitting! When judges decide the card is valid, it's be added to your deck!"
+          socket.print "HTTP/1.1 200 OK\r\n" +
+            "Content-Type: text/plain\r\n" +
+            "Content-Length: #{response.bytesize}\r\n" +
+            "Connection: close\r\n"
+          socket.print "\r\n"
+          socket.print response
+          socket.close
+          next
+        end
+      end
+
+      if req_path == '/accept'
+        param_hash = Hash[req_uri.split('?')[1..-1].map{|str| str.split('=')}]
+        card_path = "judge/TBD/#{param_hash['key']}.json"
+        user_deck_path = "public/data/decks/#{param_hash['deck_id']}.json"
+        if File.exists?(card_path)
+          card_data_hash = {}
+          current_deck_arr = []
+          File.open(card_path, 'r'){ |f| card_data_hash = JSON.parse f.read }
+          if File.exists?(user_deck_path)
+            File.open(user_deck_path, 'r'){ |f| current_deck_arr = JSON.parse f.read }
+          end
+          current_deck_arr << card_data_hash
+          File.open(user_deck_path, 'w'){ |f| f.puts current_deck_arr.to_json }
+          response = "Thanks for your cooperation! The card you judged was added to the user's deck!"
+        else
+          response = "Paths were not found."
+        end
         socket.print "HTTP/1.1 200 OK\r\n" +
           "Content-Type: text/plain\r\n" +
           "Content-Length: #{response.bytesize}\r\n" +
