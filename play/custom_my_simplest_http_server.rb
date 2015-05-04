@@ -1,19 +1,52 @@
 require 'json'
 require 'socket'
 require 'uri'
+require 'net/smtp'
+require 'cgi'
 
 class MELive
   def self.accept_card_suggestion(msg_body)
-    card_hash = parse(msg_body)
-    File.open("judge/TBD/#{card_hash[:name]}_#{Time.now.to_i}.json", 'a+') do |file|
-      file.puts card_hash.to_json
+    @card_hash = parse(msg_body)
+    @card_json_name = "#{@card_hash[:name]}_#{Time.now.to_i}"
+    File.open("judge/TBD/#{@card_json_name}.json", 'a+') do |file|
+      file.puts @card_hash.to_json
+    end
+  end
+
+  def self.notify_judge(email, recipient_name)
+    parameter = @card_hash[:parameters].values[0]
+    msg = <<MSG_END
+From: Yuta Okazaki<s04155yo@gmail.com>
+To: #{email}
+Subject: #{recipient_name}, please judge my card
+
+Hi! I'd like you to judge the card I just created.
+Especially, please look at the reasoning section below to decide if its said fact is valid or not..!
+
+Card Name: #{@card_hash[:name]}
+Card Fact:
+  #{parameter.fetch(:val, nil)} #{parameter.fetch(:unit, nil)}
+Fact Reasoning:
+  #{parameter.fetch(:reasoning, nil)}
+
+If you think this card is good to go, please click the link below.
+If not, please reply explaining why you think this is invalid.
+I really appreciate your support growing this game. Thank you!!
+
+Accept This Card by clicking the link below:
+http://localhost:2345/accept?key=#{@card_json_name}?deck_id=yuta_deck1
+MSG_END
+
+    Net::SMTP.start('localhost') do |smtp|
+      smtp.send_message msg, 's04155yo@gmail.com', email
     end
   end
 
   def self.parse(msg_body)
     h = {}
     msg_body.split('&').each do |elem|
-      k, v = elem.split('=')
+      k, v = elem.split('=', 2)
+      v = CGI.unescape v
       h[k] = v
     end
     {
@@ -63,6 +96,7 @@ class MyHTTPServer
         when '/submit'
           msg_body = read_msg_body(socket)
           MELive.accept_card_suggestion(msg_body)
+          MELive.notify_judge('s04155yo@gmail.com', 'Yuta')
 
           response = "Thank you for submitting! When judges decide the card is valid, it's be added to your deck!"
           socket.print "HTTP/1.1 200 OK\r\n" +
